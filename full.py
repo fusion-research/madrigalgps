@@ -123,6 +123,11 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
 
     Note: the Madrigal HDF5 data is read in as a Numpy structured array
 
+    Algorithm (not optimized):
+    1) knowing what satellites will eventually intersect beams, are any of those beamids in this file?
+    2) knowing what times intersections will occur, do those times exist in this file for those beams?
+    3) For the beams that meet conditions 1 and 2, compute TEC by numerical integration of NE
+
     output:
     tecisr: 2-D DataFrame, beamid x time
 
@@ -140,9 +145,9 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
     try:
         with h5py.File(fn,'r',libver='latest') as f:
             for t in intersections: #for each time...
-                #boolean for matching beam ids (not necessarily matching in time yet...)
+                #mask for matching beam ids (not necessarily matching in time yet...)
                 intmask = np.in1d(f[h5p]['beamid'].astype(int),intersections[t].dropna().astype(int))
-                #boolean for matching times (not necessarily matching beamids)
+                #mask for matching times (not necessarily matching beamids)
                 timemask =np.absolute(f[h5p]['ut1_unix'] - (t.to_pydatetime()-datetime(1970,1,1)).total_seconds()) < maxdtsec
 
                 #mask for where beamid and times "match"
