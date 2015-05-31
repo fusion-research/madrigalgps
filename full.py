@@ -170,7 +170,7 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
                     tecisr.loc[b,t] = np.trapz(10**intdata['nel'][mask], intdata['range'][mask])
 
     except ValueError as e:
-        warn('{} does not seem to have the needed data fields e.g. "beamid", "ut1_unix" may be missing.   {}'.format(fn,e))
+        warn('{} does not seem to have the needed data fields.   {}'.format(fn,e))
 
     tecisr.dropna(axis=1,how='all',inplace=True) #only retain times with TEC data (vast majority don't have)
     return tecisr
