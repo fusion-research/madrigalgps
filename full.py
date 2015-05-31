@@ -18,7 +18,7 @@ obslla = [65,-148,0]
 beamfn = "PFISRbeammap.h5"
 satfreq='5T' #T means minutes
 datadir='files'
-maxangdist=5 #degrees
+maxangdist=10 #degrees
 maxdtsec = 15
 
 
@@ -147,6 +147,8 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
             for t in intersections: #for each time...
                 #mask for matching beam ids (not necessarily matching in time yet...)
                 intmask = np.in1d(f[h5p]['beamid'].astype(int),intersections[t].dropna().astype(int))
+                if not intmask.any(): #no overlap, no point in evaluating times
+                    continue
                 #mask for matching times (not necessarily matching beamids)
                 timemask =np.absolute(f[h5p]['ut1_unix'] - (t.to_pydatetime()-datetime(1970,1,1)).total_seconds()) < maxdtsec
 
@@ -167,11 +169,10 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
                     mask &= np.isfinite(intdata['nel'][mask]) #dropna
                     tecisr.loc[b,t] = np.trapz(10**intdata['nel'][mask], intdata['range'][mask])
 
-
     except ValueError as e:
         warn('{} does not seem to have the needed data fields e.g. "beamid", "ut1_unix" may be missing.   {}'.format(fn,e))
-        return None
 
+    tecisr.dropna(axis=1,how='all',inplace=True) #only retain times with TEC data (vast majority don't have)
     return tecisr
 
 #%% main program
@@ -197,8 +198,6 @@ for f in flist:
     #TODO keep the results for each file in a list or something--right now tecisr
     #is computed for each file but then overwritten by the next file
     tecisr = checkFile(f,satdata,beamisr,maxdtsec)
-    print('{:.1f} sec. to compute TEC for {}'.format(time()-tic,f))
-    ax = plt.figure().gca()
-    tecisr.plot(ax=ax)
-    plt.show()
+    print('{:.1f} sec. to compute TEC for {} times in {}'.format(time()-tic,tecisr.shape[1],f))
+
     
