@@ -16,10 +16,10 @@ from warnings import warn
 tlefn = 'gps-ops.txt'
 obslla = [65,-148,0]
 beamfn = "PFISRbeammap.h5"
-satfreq='5T' #T means minutes
+satfreq='1T' #T means minutes
 datadir='files'
 maxangdist=10 #degrees
-maxdtsec = 15
+maxdtsec = 60
 
 
 def loopsat(tlefn,dates,obslla):
