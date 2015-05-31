@@ -158,7 +158,7 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
                 #TODO not tested past this point
                 #TODO account for the case where there are two times and one beam that overlap with the satellite.
                 """
-                goodbeams will have numerous rows corresponding to each matching time & beam id
+                intdata will have numerous rows corresponding to each matching time & beam id
                 each row is a range cell. These rows will be numerically integrated over Ne.
                 """
                 uniqbeamid = np.unique(intdata['beamid']).astype(int)
