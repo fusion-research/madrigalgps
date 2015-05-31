@@ -18,7 +18,7 @@ obslla = [65,-148,0]
 beamfn = "PFISRbeammap.h5"
 satfreq='5T' #T means minutes
 datadir='files'
-maxangdist=10 #degrees
+maxangdist=5 #degrees
 maxdtsec = 15
 
 
@@ -47,9 +47,10 @@ def compsat(tlefn,obs,dates):
         for i,s in enumerate(sats):
             si = satnum[i]
             s.compute(obs)
-            df.at[si,['lat','lon','alt']] = np.degrees(s.sublat), np.degrees(s.sublong), s.elevation
-            df.at[si,['az','el','srange']] = np.degrees(s.az), np.degrees(s.alt), s.range
-
+            if np.isfinite(s.sublat): #if sublat is nan, that means SGP4 couldn't solve for position
+                df.at[si,['lat','lon','alt']] = np.degrees(s.sublat), np.degrees(s.sublong), s.elevation
+                df.at[si,['az','el','srange']] = np.degrees(s.az), np.degrees(s.alt), s.range
+        #FIXME: add dropna for times that sublat is NaN
         belowhoriz = df['el']<0
         df.ix[belowhoriz,['az','el','srange']] = np.nan
 
@@ -139,20 +140,27 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
     try:
         with h5py.File(fn,'r',libver='latest') as f:
             for t in intersections: #for each time...
-                #get the times for matching beam ids (not necessarily matching in time yet...)
-                timeutc = f[h5p]['ut1_unix'][np.in1d(f[h5p]['beamid'].astype(int),intersections[t].dropna().astype(int))]
-                #any of the times of those beams close enough?
-                goodbeams = f[h5p][(timeutc - (t-datetime(1970,1,1)).total_seconds()) < maxdtsec]
+                #boolean for matching beam ids (not necessarily matching in time yet...)
+                intmask = np.in1d(f[h5p]['beamid'].astype(int),intersections[t].dropna().astype(int))
+                #boolean for matching times (not necessarily matching beamids)
+                timemask =np.absolute(f[h5p]['ut1_unix'] - (t.to_pydatetime()-datetime(1970,1,1)).total_seconds()) < maxdtsec
+
+                #mask for where beamid and times "match"
+                inttimemask = intmask & timemask
+                #retrieve "good" rows of HDF5 that are the correct Beam ID(s) and time(s)
+                intdata = f[h5p][inttimemask]
+
                 #TODO not tested past this point
                 #TODO account for the case where there are two times and one beam that overlap with the satellite.
                 """
                 goodbeams will have numerous rows corresponding to each matching time & beam id
                 each row is a range cell. These rows will be numerically integrated over Ne.
                 """
-                uniqbeamid = np.unique(goodbeams['beamid'])
+                uniqbeamid = np.unique(intdata['beamid']).astype(int)
                 for b in uniqbeamid:
-                    rows = np.where(np.isclose(goodbeams['beamid'],b))[0] #this is one beam's rows, all range bins
-                    tecisr.loc[t,b] = np.trapz(goodbeams[rows,'ne'],goodbeams[rows,'range'])
+                    mask = np.isclose(intdata['beamid'],b) #this is one beam's rows, all range bins
+                    mask &= np.isfinite(intdata['nel'][mask]) #dropna
+                    tecisr.loc[b,t] = np.trapz(10**intdata['nel'][mask], intdata['range'][mask])
 
 
     except ValueError as e:
@@ -162,7 +170,8 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
     return tecisr
 
 #%% main program
-dates = makeDates(2015,06,01)
+syr=2014; smo=10; sdy = 15
+dates = makeDates(syr,smo,sdy)
 
 tic = time()
 satdata = loopsat(tlefn,dates,obslla)
@@ -174,6 +183,12 @@ beamisr = read_hdf(beamfn,'data')
 satdata = findIntersection(satdata,beamisr,dates,beamfn,maxangdist)
 print('{:.1f} seconds to compute intersections'.format(time()-tic))
 
-flist = glob(join(datadir,'*.h5'))
+#only examine files from the correct date
+syrstr=str(syr)[2:]
+flist = glob(join(datadir,'pfa{}{}{}*.h5'.format(syrstr,smo,sdy)))
+
 for f in flist:
-    goodbeams = checkFile(f,satdata,beamisr,maxdtsec)
+    tic = time()
+    tecisr = checkFile(f,satdata,beamisr,maxdtsec)
+    print('{:.1f} sec. to compute TEC for {}'.format(time()-tic,f))
+    
