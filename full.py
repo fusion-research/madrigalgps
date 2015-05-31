@@ -198,4 +198,7 @@ for f in flist:
     #is computed for each file but then overwritten by the next file
     tecisr = checkFile(f,satdata,beamisr,maxdtsec)
     print('{:.1f} sec. to compute TEC for {}'.format(time()-tic,f))
+    ax = plt.figure().gca()
+    tecisr.plot(ax=ax)
+    plt.show()
     
