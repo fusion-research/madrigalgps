@@ -194,6 +194,8 @@ flist = glob(join(datadir,'pfa{}{}{}*.h5'.format(syrstr,smo,sdy)))
 
 for f in flist:
     tic = time()
+    #TODO keep the results for each file in a list or something--right now tecisr
+    #is computed for each file but then overwritten by the next file
     tecisr = checkFile(f,satdata,beamisr,maxdtsec)
     print('{:.1f} sec. to compute TEC for {}'.format(time()-tic,f))
     
