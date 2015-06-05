@@ -167,13 +167,18 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
                 for b in uniqbeamid:
                     mask = np.isclose(intdata['beamid'],b) #this is one beam's rows, all range bins
                     mask &= np.isfinite(intdata['nel'][mask]) #dropna
-                    tecisr.loc[b,t] = np.trapz(10**intdata['nel'][mask], intdata['range'][mask])
+                    tecisr.loc[b,t] = comptecisr(10**intdata['nel'][mask],
+                                                 intdata['range'][mask])
 
     except ValueError as e:
         warn('{} does not seem to have the needed data fields.   {}'.format(fn,e))
 
     tecisr.dropna(axis=1,how='all',inplace=True) #only retain times with TEC data (vast majority don't have)
     return tecisr
+
+def comptecisr(Ne,slantrange):
+    isrcoeff = e**3 * B0 * np.cos(alpha) / (2 * eps0 * me**2 * omega**2 * c)
+    return np.trapz(Ne, slantrange)
 
 #%% main program
 syr=2014; smo=10; sdy = 15
