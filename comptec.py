@@ -177,32 +177,44 @@ def checkFile(fn,satdata,beamisr,maxdtsec):
     return tecisr
 
 def comptecisr(Ne,slantrange):
+    """
+    https://piers.org/piersproceedings/download.php?file=cGllcnMyMDEyTW9zY293fDNQM18xMTY0LnBkZnwxMjAzMjAwNjE3MDI=
+    This coefficient may not be applicable to PFISR in this way.
+    """
+    e = 1.602176565e-19 #[C] [A s]
+    B0 = 57000e-9 #[T] [kg s**-2 A**-1]  near PFISR
+    alpha = np.radians(77.5) #inclination near PFISR
+    eps0 = 8.854187817e-12 #[F/m] [s**4 A**2 m**-2 kg**-1]
+    me = 9.10938291e-31 #[kg]
+    omega = 2*np.pi*450e6 #[radians/s]
+    c = 299792458 #[m/s]
     isrcoeff = e**3 * B0 * np.cos(alpha) / (2 * eps0 * me**2 * omega**2 * c)
-    return np.trapz(Ne, slantrange)
+    print('The ISR coefficient from Shpynev and Khabituev 2012 is {:.3e}'.format(isrcoeff))
+    return isrcoeff*np.trapz(Ne, slantrange)
 
-#%% main program
-syr=2014; smo=10; sdy = 15
-dates = makeDates(syr,smo,sdy)
-
-tic = time()
-satdata = loopsat(tlefn,dates,obslla)
-print('{:.1f} seconds to compute orbits'.format(time()-tic))
-
-
-tic = time()
-beamisr = read_hdf(beamfn,'data')
-satdata = findIntersection(satdata,beamisr,dates,beamfn,maxangdist)
-print('{:.1f} seconds to compute intersections'.format(time()-tic))
-
-#only examine files from the correct date
-syrstr=str(syr)[2:]
-flist = glob(join(datadir,'pfa{}{}{}*.h5'.format(syrstr,smo,sdy)))
-
-for f in flist:
-    tic = time()
-    #TODO keep the results for each file in a list or something--right now tecisr
-    #is computed for each file but then overwritten by the next file
-    tecisr = checkFile(f,satdata,beamisr,maxdtsec)
-    print('{:.1f} sec. to compute TEC for {} times in {}'.format(time()-tic,tecisr.shape[1],f))
-
+if __name__ == '__main__':
+    syr=2014; smo=10; sdy = 15
+    dates = makeDates(syr,smo,sdy)
     
+    tic = time()
+    satdata = loopsat(tlefn,dates,obslla)
+    print('{:.1f} seconds to compute orbits'.format(time()-tic))
+    
+    
+    tic = time()
+    beamisr = read_hdf(beamfn,'data')
+    satdata = findIntersection(satdata,beamisr,dates,beamfn,maxangdist)
+    print('{:.1f} seconds to compute intersections'.format(time()-tic))
+    
+    #only examine files from the correct date
+    syrstr=str(syr)[2:]
+    flist = glob(join(datadir,'pfa{}{}{}*.h5'.format(syrstr,smo,sdy)))
+    
+    for f in flist:
+        tic = time()
+        #TODO keep the results for each file in a list or something--right now tecisr
+        #is computed for each file but then overwritten by the next file
+        tecisr = checkFile(f,satdata,beamisr,maxdtsec)
+        print('{:.1f} sec. to compute TEC for {} times in {}'.format(time()-tic,tecisr.shape[1],f))
+    
+        
